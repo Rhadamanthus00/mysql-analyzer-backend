@@ -3,12 +3,11 @@ const jwt = require('jsonwebtoken');
 require('dotenv').config();
 
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  console.error('❌ JWT_SECRET 环境变量未设置，请在 .env 文件中配置');
-  process.exit(1);
-}
 
 function generateToken(user) {
+  if (!JWT_SECRET) {
+    throw new Error('JWT_SECRET 环境变量未设置');
+  }
   return jwt.sign(
     { id: user.id, username: user.username, role: user.role },
     JWT_SECRET,
@@ -17,6 +16,10 @@ function generateToken(user) {
 }
 
 function authMiddleware(req, res, next) {
+  if (!JWT_SECRET) {
+    return res.status(500).json({ error: 'JWT_SECRET 未配置' });
+  }
+
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({ error: '未登录' });

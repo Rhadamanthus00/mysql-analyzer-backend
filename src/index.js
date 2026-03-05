@@ -1,10 +1,8 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 
 const app = express();
-const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({
@@ -24,6 +22,12 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-app.listen(PORT, () => {
-  console.log(`MySQL Analyzer Backend running on http://localhost:${PORT}`);
-});
+// Only listen in non-serverless environment
+if (process.env.VERCEL !== '1') {
+  const PORT = process.env.PORT || 3001;
+  app.listen(PORT, () => {
+    console.log(`MySQL Analyzer Backend running on http://localhost:${PORT}`);
+  });
+}
+
+module.exports = app;

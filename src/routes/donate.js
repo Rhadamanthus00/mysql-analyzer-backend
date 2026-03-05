@@ -30,10 +30,15 @@ function parseAmounts(raw) {
 }
 
 // GET /api/donate/config - Public, anyone can read
+// Use ?full=1 to include full qrcodeImage base64 data
 router.get('/config', async (req, res) => {
   try {
     await ensureInit();
-    const config = await getOne('SELECT * FROM donate_config WHERE id = 1');
+    const includeFull = req.query.full === '1';
+    const columns = includeFull
+      ? '*'
+      : 'id, enabled, title, description, amounts, CASE WHEN qrcode_image IS NOT NULL AND qrcode_image != \'\' THEN \'1\' ELSE \'\' END AS has_qrcode';
+    const config = await getOne(`SELECT ${columns} FROM donate_config WHERE id = 1`);
     if (!config) {
       return res.json({
         enabled: false, qrcodeImage: '', title: '请作者喝杯咖啡',
@@ -43,7 +48,7 @@ router.get('/config', async (req, res) => {
     }
     res.json({
       enabled: !!config.enabled,
-      qrcodeImage: config.qrcode_image || '',
+      qrcodeImage: includeFull ? (config.qrcode_image || '') : (config.has_qrcode === '1' ? '__has_image__' : ''),
       title: config.title || '请作者喝杯咖啡',
       description: config.description || '如果这个项目对您有帮助，可以请作者喝杯咖啡，感谢您的支持！',
       amounts: parseAmounts(config.amounts),

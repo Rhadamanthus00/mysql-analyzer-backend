@@ -146,13 +146,16 @@ router.post('/oauth', async (req, res) => {
       );
       user = await getOne('SELECT * FROM users WHERE id = $1', [user.id]);
     } else {
-      const randomNum = Math.floor(Math.random() * 9000) + 1000;
+      // 使用时间戳+随机数确保唯一性
+      const uniqueId = Date.now().toString(36).slice(-4) + Math.floor(Math.random() * 100).toString().padStart(2, '0');
       const id = generateId();
-      const uname = `${provider}_${randomNum}`;
+      const uname = `${provider}_${uniqueId}`;
+      const email = `${provider}_${uniqueId}@oauth.example.com`;
+
       await query(
         `INSERT INTO users (id, username, email, display_name, role, provider, password_changed, created_at, last_login_at, login_count, total_usage_minutes, modules_visited)
          VALUES ($1, $2, $3, $4, 'user', $5, TRUE, $6, $7, 1, 0, '[]')`,
-        [id, uname, `${provider}_${randomNum}@oauth.example.com`, `${providerNames[provider]}用户${randomNum}`, provider, now, now]
+        [id, uname, email, `${providerNames[provider]}用户${uniqueId}`, provider, now, now]
       );
 
       await query(
@@ -166,7 +169,7 @@ router.post('/oauth', async (req, res) => {
     res.json({ success: true, user: formatUser(user), token });
   } catch (err) {
     console.error('OAuth error:', err);
-    res.status(500).json({ success: false, error: '服务器内部错误' });
+    res.status(500).json({ success: false, error: '授权服务暂时不可用，请稍后重试' });
   }
 });
 

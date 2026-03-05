@@ -4,11 +4,20 @@ const cors = require('cors');
 
 const app = express();
 
-// Middleware
+// Middleware - CORS 优化：支持手机微信浏览器
 app.use(cors({
   origin: process.env.CORS_ORIGIN || '*',
   credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  maxAge: 86400, // 预检请求缓存24小时，减少OPTIONS请求
 }));
+
+// 显式处理 OPTIONS 预检请求（快速响应）
+app.options('*', (req, res) => {
+  res.status(204).end();
+});
+
 app.use(express.json({ limit: '5mb' }));
 
 // Routes

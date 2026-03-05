@@ -79,6 +79,9 @@ async function initDatabase() {
   };
   await addColumnSafe('users', 'avatar', "TEXT DEFAULT ''");
   await addColumnSafe('users', 'password_changed', 'BOOLEAN DEFAULT FALSE');
+  await addColumnSafe('usage_records', 'details', "TEXT DEFAULT ''");
+  await addColumnSafe('usage_records', 'duration', 'INTEGER DEFAULT 0');
+  await addColumnSafe('donate_config', 'qrcode_image', "TEXT DEFAULT ''");
 
   // Create indexes
   await query(`CREATE INDEX IF NOT EXISTS idx_usage_timestamp ON usage_records(timestamp)`);

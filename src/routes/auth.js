@@ -14,6 +14,10 @@ function formatDate(date) {
 }
 
 function formatUser(row) {
+  let modulesVisited = row.modules_visited || [];
+  if (typeof modulesVisited === 'string') {
+    try { modulesVisited = JSON.parse(modulesVisited); } catch { modulesVisited = []; }
+  }
   return {
     id: row.id,
     username: row.username,
@@ -26,7 +30,7 @@ function formatUser(row) {
     lastLoginAt: row.last_login_at,
     loginCount: row.login_count,
     totalUsageMinutes: row.total_usage_minutes,
-    modulesVisited: JSON.parse(row.modules_visited || '[]'),
+    modulesVisited,
     passwordChanged: !!row.password_changed,
   };
 }

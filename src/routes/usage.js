@@ -30,7 +30,7 @@ router.post('/record', authMiddleware, async (req, res) => {
     // Update user's modules_visited
     const user = await getOne('SELECT modules_visited FROM users WHERE id = $1', [req.user.id]);
     if (user) {
-      const visited = JSON.parse(user.modules_visited || '[]');
+      const visited = typeof user.modules_visited === 'string' ? JSON.parse(user.modules_visited || '[]') : (user.modules_visited || []);
       if (!visited.includes(module)) {
         visited.push(module);
         await query('UPDATE users SET modules_visited = $1 WHERE id = $2', [JSON.stringify(visited), req.user.id]);

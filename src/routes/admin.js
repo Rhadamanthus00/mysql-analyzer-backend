@@ -19,7 +19,7 @@ function formatUser(row) {
     lastLoginAt: row.last_login_at,
     loginCount: row.login_count,
     totalUsageMinutes: row.total_usage_minutes,
-    modulesVisited: JSON.parse(row.modules_visited || '[]'),
+    modulesVisited: typeof row.modules_visited === 'string' ? JSON.parse(row.modules_visited || '[]') : (row.modules_visited || []),
   };
 }
 

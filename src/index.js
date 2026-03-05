@@ -14,7 +14,8 @@ app.use(cors({
 }));
 
 // 显式处理 OPTIONS 预检请求（快速响应）
-app.options('*', (req, res) => {
+// Express 5 不再支持 '*' 通配符，改用 '{*path}' 语法
+app.options('{*path}', (req, res) => {
   res.status(204).end();
 });
 

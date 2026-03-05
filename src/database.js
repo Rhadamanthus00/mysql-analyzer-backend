@@ -46,8 +46,10 @@ async function initDatabase() {
       login_count INTEGER DEFAULT 0,
       total_usage_minutes INTEGER DEFAULT 0,
       modules_visited TEXT DEFAULT '[]'
-    );
+    )
+  `);
 
+  await query(`
     CREATE TABLE IF NOT EXISTS usage_records (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -57,8 +59,10 @@ async function initDatabase() {
       timestamp TEXT NOT NULL,
       duration INTEGER DEFAULT 0,
       details TEXT DEFAULT ''
-    );
+    )
+  `);
 
+  await query(`
     CREATE TABLE IF NOT EXISTS donate_config (
       id INTEGER PRIMARY KEY CHECK(id = 1),
       enabled BOOLEAN DEFAULT FALSE,
@@ -66,8 +70,15 @@ async function initDatabase() {
       title TEXT DEFAULT '请作者喝杯咖啡',
       description TEXT DEFAULT '如果这个项目对您有帮助，可以请作者喝杯咖啡，感谢您的支持！',
       amounts TEXT DEFAULT '[5,10,20,50]'
-    );
+    )
   `);
+
+  // Ensure columns exist (for migrations)
+  const addColumnSafe = async (table, col, def) => {
+    try { await query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${col} ${def}`); } catch(e) {}
+  };
+  await addColumnSafe('users', 'avatar', "TEXT DEFAULT ''");
+  await addColumnSafe('users', 'password_changed', 'BOOLEAN DEFAULT FALSE');
 
   // Create indexes
   await query(`CREATE INDEX IF NOT EXISTS idx_usage_timestamp ON usage_records(timestamp)`);

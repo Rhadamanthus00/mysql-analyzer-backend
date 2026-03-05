@@ -1,6 +1,12 @@
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'mysql-analyzer-secret-key-2024';
+require('dotenv').config();
+
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('❌ JWT_SECRET 环境变量未设置，请在 .env 文件中配置');
+  process.exit(1);
+}
 
 function generateToken(user) {
   return jwt.sign(

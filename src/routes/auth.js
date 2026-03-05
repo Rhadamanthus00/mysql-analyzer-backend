@@ -27,6 +27,7 @@ function formatUser(row) {
     loginCount: row.login_count,
     totalUsageMinutes: row.total_usage_minutes,
     modulesVisited: JSON.parse(row.modules_visited || '[]'),
+    passwordChanged: !!row.password_changed,
   };
 }
 
@@ -60,7 +61,12 @@ router.post('/login', (req, res) => {
   const updatedUser = db.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
   const token = generateToken(updatedUser);
 
-  res.json({ success: true, user: formatUser(updatedUser), token });
+  res.json({
+    success: true,
+    user: formatUser(updatedUser),
+    token,
+    requirePasswordChange: !updatedUser.password_changed && updatedUser.role === 'admin',
+  });
 });
 
 // POST /api/auth/register
@@ -87,8 +93,8 @@ router.post('/register', (req, res) => {
   const id = generateId();
   const hash = bcrypt.hashSync(password, 10);
 
-  db.prepare(`INSERT INTO users (id, username, email, display_name, role, provider, password_hash, created_at, last_login_at, login_count, total_usage_minutes, modules_visited)
-    VALUES (?, ?, ?, ?, 'user', 'local', ?, ?, ?, 0, 0, '[]')`)
+  db.prepare(`INSERT INTO users (id, username, email, display_name, role, provider, password_hash, password_changed, created_at, last_login_at, login_count, total_usage_minutes, modules_visited)
+    VALUES (?, ?, ?, ?, 'user', 'local', ?, 1, ?, ?, 0, 0, '[]')`)
     .run(id, username, email, displayName, hash, now, now);
 
   db.prepare('INSERT INTO usage_records (id, user_id, username, action, module, timestamp, details) VALUES (?, ?, ?, ?, ?, ?, ?)')
@@ -119,8 +125,8 @@ router.post('/oauth', (req, res) => {
     const randomNum = Math.floor(Math.random() * 9000) + 1000;
     const id = generateId();
     const uname = `${provider}_${randomNum}`;
-    db.prepare(`INSERT INTO users (id, username, email, display_name, role, provider, created_at, last_login_at, login_count, total_usage_minutes, modules_visited)
-      VALUES (?, ?, ?, ?, 'user', ?, ?, ?, 1, 0, '[]')`)
+    db.prepare(`INSERT INTO users (id, username, email, display_name, role, provider, password_changed, created_at, last_login_at, login_count, total_usage_minutes, modules_visited)
+      VALUES (?, ?, ?, ?, 'user', ?, 1, ?, ?, 1, 0, '[]')`)
       .run(id, uname, `${provider}_${randomNum}@oauth.example.com`, `${providerNames[provider]}用户${randomNum}`, provider, now, now);
 
     db.prepare('INSERT INTO usage_records (id, user_id, username, action, module, timestamp, details) VALUES (?, ?, ?, ?, ?, ?, ?)')
@@ -132,13 +138,48 @@ router.post('/oauth', (req, res) => {
   res.json({ success: true, user: formatUser(user), token });
 });
 
+// PUT /api/auth/change-password
+router.put('/change-password', authMiddleware, (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!newPassword || newPassword.length < 6) {
+    return res.status(400).json({ success: false, error: '新密码至少需要6个字符' });
+  }
+
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
+  if (!user) {
+    return res.status(404).json({ success: false, error: '用户不存在' });
+  }
+
+  // If password has been changed before, require current password verification
+  if (user.password_changed && user.password_hash) {
+    if (!currentPassword) {
+      return res.status(400).json({ success: false, error: '请输入当前密码' });
+    }
+    if (!bcrypt.compareSync(currentPassword, user.password_hash)) {
+      return res.status(400).json({ success: false, error: '当前密码错误' });
+    }
+  }
+
+  const newHash = bcrypt.hashSync(newPassword, 10);
+  db.prepare('UPDATE users SET password_hash = ?, password_changed = 1 WHERE id = ?').run(newHash, user.id);
+
+  const now = formatDate(new Date());
+  db.prepare('INSERT INTO usage_records (id, user_id, username, action, module, timestamp, details) VALUES (?, ?, ?, ?, ?, ?, ?)')
+    .run(generateId(), user.id, user.username, '修改密码', '系统', now, '用户修改密码');
+
+  res.json({ success: true });
+});
+
 // GET /api/auth/me
 router.get('/me', authMiddleware, (req, res) => {
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(req.user.id);
   if (!user) {
     return res.status(404).json({ error: '用户不存在' });
   }
-  res.json({ user: formatUser(user) });
+  res.json({
+    user: formatUser(user),
+    requirePasswordChange: !user.password_changed && user.role === 'admin',
+  });
 });
 
 // POST /api/auth/logout

@@ -19,6 +19,16 @@ const upload = multer({
   }
 });
 
+// Safe parse amounts (could be string, array, or object from pg driver)
+function parseAmounts(raw) {
+  if (!raw) return [5, 10, 20, 50];
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    try { return JSON.parse(raw); } catch { return [5, 10, 20, 50]; }
+  }
+  return [5, 10, 20, 50];
+}
+
 // GET /api/donate/config - Public, anyone can read
 router.get('/config', async (req, res) => {
   try {
@@ -33,14 +43,14 @@ router.get('/config', async (req, res) => {
     }
     res.json({
       enabled: !!config.enabled,
-      qrcodeImage: config.qrcode_image,
-      title: config.title,
-      description: config.description,
-      amounts: JSON.parse(config.amounts || '[5,10,20,50]'),
+      qrcodeImage: config.qrcode_image || '',
+      title: config.title || '请作者喝杯咖啡',
+      description: config.description || '如果这个项目对您有帮助，可以请作者喝杯咖啡，感谢您的支持！',
+      amounts: parseAmounts(config.amounts),
     });
   } catch (err) {
     console.error('Get donate config error:', err);
-    res.status(500).json({ error: '服务器内部错误' });
+    res.status(500).json({ error: '服务器内部错误', debug: err.message });
   }
 });
 
@@ -74,14 +84,14 @@ router.put('/config', authMiddleware, adminMiddleware, async (req, res) => {
     const updated = await getOne('SELECT * FROM donate_config WHERE id = 1');
     res.json({
       enabled: !!updated.enabled,
-      qrcodeImage: updated.qrcode_image,
-      title: updated.title,
-      description: updated.description,
-      amounts: JSON.parse(updated.amounts || '[5,10,20,50]'),
+      qrcodeImage: updated.qrcode_image || '',
+      title: updated.title || '请作者喝杯咖啡',
+      description: updated.description || '',
+      amounts: parseAmounts(updated.amounts),
     });
   } catch (err) {
     console.error('Update donate config error:', err);
-    res.status(500).json({ error: '服务器内部错误' });
+    res.status(500).json({ error: '服务器内部错误', debug: err.message });
   }
 });
 
